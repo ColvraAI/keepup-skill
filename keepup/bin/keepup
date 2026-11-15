@@ -1,0 +1,70 @@
+#!/bin/sh
+# The command Claude Code puts on PATH from a plugin's bin folder, so a skill can pre-approve keepup and nothing else that runs node.
+# A built client has keepup.js beside this file and needs Node 18 or later. A checkout of the repo has only keepup.ts, which needs
+# Node 22.18 or later, because Node runs its TypeScript directly. It checks the version here, because an older Node would print a stack trace.
+# Found through a plugin's bin folder, by the name it was called with, it's a session: keepup then keeps to the project and the data folder.
+
+# Where this file really is, through any links to it, in plain sh: macOS before 13 has no realpath command.
+# At most 40 links, as many as Linux follows, so a loop stops here instead of running forever.
+self=$0
+hops=0
+while [ -L "$self" ]; do
+  hops=$((hops + 1))
+  if [ "$hops" -gt 40 ]; then
+    echo "keepup can't find where it is installed: more than 40 links lead to it, or they go round in a loop." >&2
+    exit 1
+  fi
+  link=$(readlink "$self")
+  case "$link" in
+    /*) self=$link ;;
+    *) case "$self" in */*) self=${self%/*}/$link ;; *) self=$link ;; esac ;;
+  esac
+done
+case "$self" in */*) bin=${self%/*} ;; *) bin=. ;; esac
+if [ -f "$bin/keepup.js" ]; then
+  entry=$bin/keepup.js
+  need=18
+  need_major=18
+  need_minor=0
+else
+  entry=$bin/keepup.ts
+  need=22.18
+  need_major=22
+  need_minor=18
+fi
+
+version=$(node --version 2>/dev/null)
+numbers=${version#v}
+major=${numbers%%.*}
+minor=${numbers#*.}
+minor=${minor%%.*}
+case "$major" in '' | *[!0-9]*) major=0 ;; esac
+case "$minor" in '' | *[!0-9]*) minor=0 ;; esac
+if [ "$major" -lt "$need_major" ] || { [ "$major" -eq "$need_major" ] && [ "$minor" -lt "$need_minor" ]; }; then
+  case " $* " in *" --hook "*)
+    # The hook says it once, plainly, in the data folder's memory. It never fails a session.
+    previous=
+    state=
+    for argument in "$@"; do
+      [ "$previous" = "--weekly-state" ] && state=$argument
+      previous=$argument
+    done
+    case "$state" in */*)
+      said="${state%/*}/node-too-old-said"
+      if [ ! -e "$said" ] && mkdir -p "${state%/*}" 2>/dev/null && : > "$said" 2>/dev/null; then
+        printf '{"systemMessage":"keepup needs Node %s or later; this is %s. It stays quiet until you update."}\n' "$need" "${version:-no node on PATH}"
+      fi
+    esac
+    exit 0 ;;
+  esac
+  echo "keepup needs Node $need or later; this is ${version:-no node on PATH}" >&2
+  exit 3
+fi
+here=${0%/*}
+if [ -f "${here%/*}/.claude-plugin/plugin.json" ]; then
+  KEEPUP_PLUGIN=1
+else
+  KEEPUP_PLUGIN=
+fi
+export KEEPUP_PLUGIN
+exec node "$entry" "$@"

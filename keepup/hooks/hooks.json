@@ -1,0 +1,24 @@
+{
+  "description": "At session start: keeps the account key the plugin was given, if any, in keepup's credentials file; with a key, refreshes the detection pack in the background; and prints the weekly line from the pack it holds. It sends nothing about the project, and with no key it sends nothing at all.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/keepup",
+            "args": [
+              "check",
+              "${CLAUDE_PROJECT_DIR}",
+              "--weekly-state",
+              "${CLAUDE_PLUGIN_DATA}/weekly-check.json",
+              "--hook"
+            ],
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

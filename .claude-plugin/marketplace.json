@@ -1,0 +1,14 @@
+{
+  "name": "colvra",
+  "description": "keepup, from Colvra.",
+  "owner": {
+    "name": "Colvra"
+  },
+  "plugins": [
+    {
+      "name": "keepup",
+      "description": "Checks your AI product's code against what is new in AI and offers the few changes worth making.",
+      "source": "./keepup"
+    }
+  ]
+}

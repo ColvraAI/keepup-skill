@@ -1,0 +1,15 @@
+{
+  "name": "keepup",
+  "displayName": "keepup",
+  "description": "You can't keep up with AI. Your product can. Checks your code against everything new in AI and tells you the few changes worth making.",
+  "author": { "name": "Colvra" },
+  "keywords": ["ai", "llm", "dependencies", "model-retirement", "code-review"],
+  "userConfig": {
+    "api_key": {
+      "type": "string",
+      "title": "Account key (optional)",
+      "description": "Optional. Without it, keepup checks your code for retired and retiring models. With your keepup account key, which starts with kup_, a build of keepup that has a server also asks it for the levers that fit your code. The free build has no server, so it never uses the key.",
+      "sensitive": true
+    }
+  }
+}
