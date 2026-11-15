@@ -13,6 +13,13 @@ In Claude Code:
 
 Restart Claude Code, then type `/keepup` in the repo you want checked.
 
+An older keepup, the release of 3 Nov, is also named keepup, and it answers `/keepup` in place of this one. `claude plugin list` shows it as `keepup@keepup`. Remove it first, in your terminal:
+
+```text
+claude plugin uninstall keepup@keepup
+claude plugin marketplace remove keepup
+```
+
 In Codex CLI, run this in your terminal, then type `$keepup` in a Codex session in that repo:
 
 ```text
@@ -23,7 +30,7 @@ No account is needed for either.
 
 ## What it does with no account
 
-keepup finds the models in your code that their provider has retired or is retiring. For each one it records the file and the line, the date it stops working, the model to move to when the provider names one, and the provider's own page that says so. The brief sums them up in one line, such as `Biggest finding: 2 models here have shut down · src/legacy.py:7`, and asks if you want the change. That is all it checks without an account.
+keepup finds the models in your code that their provider has retired or is retiring. For each one it records the file and the line, the date it stops working, the model to move to when the provider names one, and the provider's own page that says so. The brief leads with one line, such as `Biggest finding: 2 models here have shut down · src/legacy.py:7`, then lists each one with those details, and asks if you want the change. That is all it checks without an account.
 
 When you say yes to a change, `/keepup:apply` (in Codex, `$keepup-apply`) makes it on a local branch and asks again before it pushes or opens a draft pull request.
 

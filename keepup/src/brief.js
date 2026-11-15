@@ -853,11 +853,69 @@ function noLeverLead(run            , retired                    )           {
   return retired.length ? wrapped(retirementLine(run, retired).replace(/^Also: /, 'Biggest finding: ').replace(` · ${OFFER}`, '')) : [NOTHING_FROM_PACK];
 }
 
+/** A sentence of a retirement's why that says what happened to one model and when: not its announcement, successor or a chain note. */
+const STATUS_SENTENCE = /^\S+ (?:was shut down|shuts down|is a pinned version of|was due to shut down|is deprecated)\b/;
+
+function whenText(finding         )         {
+  return finding.why.split(/(?<=\.)\s+/).filter((sentence) => STATUS_SENTENCE.test(sentence)).join(' ');
+}
+
+/** Up to two places whole, then how many more: a cut path would point nowhere. */
+function retiredWhere(finding         )         {
+  const places = finding.where.map((place) => `${fileName(place.file)}:${place.line}`);
+  if (places.length === 0) return '   Where: no single line; see the source';
+  const two = places.length > 1 && oneLine(`   Where: ${places.slice(0, SUMMARY_PLACES).join(', ')} and ${places.length} more`).length <= MAX_LINE;
+  const shown = two ? Math.min(places.length, SUMMARY_PLACES) : 1;
+  const more = places.length - shown;
+  return fitWithTail(`   Where: ${places.slice(0, shown).join(', ')}`, more > 0 ? ` and ${more} more` : '');
+}
+
+/** Each model here to the one its provider names, or that it names one, or nothing when the finding doesn't say. */
+function retiredMove(finding         , run            )         {
+  const moves = movesOf(finding, run);
+  if (moves.length) return `Do: ${movesText(moves)}`;
+  const named = successors(finding.why);
+  return named ? `Named successor: ${named}` : '';
+}
+
+/** The provider's page that says so: the deprecations page an option cites before a changelog. An SDK upgrade's option cites none. */
+function retiredSource(finding         )                     {
+  return finding.options.map((option) => option.source).find(Boolean) ?? finding.sources[0];
+}
+
+/** With no account a retirement is the whole product: what happened to which model and when, where, what to move to, the page, and how to ask. */
+function retiredBlock(finding         , index        , run            )           {
+  const n = finding.rank ?? index + 1;
+  const when = whenText(finding);
+  const move = retiredMove(finding, run);
+  const source = retiredSource(finding);
+  return ['', fit(`${n}. ${finding.title}`), ...(when ? wrapped(`   When: ${when}`) : []), retiredWhere(finding), ...(move ? wrapped(`   ${move}`) : []), ...checkLine(finding), ...(source ? wrapped(`   Source: ${source}`) : []), `   Next: ${APPLY[run.host ?? 'claude']} ${n}`];
+}
+
+/** Past what fits in full: the title and first place, then when, the move and the page, carried on rather than cut. */
+function retiredShort(finding         , index        , run            )           {
+  const [place] = finding.where;
+  const source = retiredSource(finding);
+  const said = [whenText(finding), retiredMove(finding, run)].filter(Boolean).join(' ');
+  return [fitWithTail(`${finding.rank ?? index + 1}. ${finding.title}`, place ? ` · ${fileName(place.file)}:${place.line}` : ''), ...(said || source ? wrapped(`   ${[said, source].filter(Boolean).join(' · ')}`) : [])];
+}
+
+/** Every retirement by name: the first ones in full, the rest short, or a count of the rest when even that won't fit. */
+function retiredList(run            , retired                    , inFull        , rest         )           {
+  const unshown = retired.length - inFull;
+  return [
+    ...retired.slice(0, inFull).flatMap((finding, index) => retiredBlock(finding, index, run)),
+    ...(unshown > 0 && rest ? ['', ...retired.slice(inFull).flatMap((finding, index) => retiredShort(finding, index + inFull, run))] : []),
+    ...(unshown > 0 && !rest ? ['', fit(`${unshown} more, each with its date, place and successor: keepup get verified.findings`)] : []),
+  ];
+}
+
 function summaryLines(run            , { inFull, compact, rest, shed, trim }              )           {
   const levers = run.findings.filter((finding) => !isRetirement(finding));
   const retired = run.findings.filter(isRetirement);
   const unshown = levers.length - inFull;
-  const retiredLeads = levers.length === 0 && Boolean(run.client && noAccount(run.client));
+  // With no account no lever was asked about, so the retirements are what the brief is for: each is listed, not counted.
+  const listRetired = Boolean(run.client && noAccount(run.client));
   return [
     `keepup: ${oneLine(run.repo)} · ${commitLine(run)} · ${run.client ? packHeader(run.client) : `database as of ${humanDate(run.db.fetched)}`}`,
     ...staleDataLines(run),
@@ -868,7 +926,8 @@ function summaryLines(run            , { inFull, compact, rest, shed, trim }    
     ...levers.slice(0, inFull).flatMap((finding, index) => leverBlock(finding, index, run, trim)),
     ...(rest ? levers.slice(inFull).flatMap((finding, index) => shortFinding(finding, index + inFull, run)) : []),
     ...(levers.length ? ['', fit(`${!rest && unshown > 0 ? `${inFull ? `The other ${unshown} are` : 'Each one is'} in the table above. ` : ''}${FULL_SUM}`)] : []),
-    ...(retired.length && shed < 3 && !retiredLeads ? ['', ...wrapped(retirementLine(run, retired))] : []),
+    ...(listRetired ? retiredList(run, retired, inFull, rest) : []),
+    ...(retired.length && shed < 3 && !listRetired ? ['', ...wrapped(retirementLine(run, retired))] : []),
     ...(shed < 1 ? teamLines(run, compact) : []),
     ...(shed < 2 ? summaryTail(run, compact) : run.incomplete ? ['', fit(`Incomplete: ${run.incomplete.reason}`)] : []),
     ...(run.client ? heldByServer(run.client) : []),

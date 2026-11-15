@@ -2,8 +2,8 @@
 // the searches, bundles and reads that really happened, so a brief's coverage line is written from what ran and not from what a model says ran.
 import { createHash } from 'node:crypto';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { basename, join } from 'node:path';
+import { keepupHome } from './store.js';
 
 const LOG = 'session-log.jsonl';
 const SEARCHES_PER_JOB = 2;
@@ -64,8 +64,9 @@ function ownFolder(dir        , env                   )         {
   return join(dir, 'repos', `${safeName}-${createHash('sha256').update(project).digest('hex').slice(0, 10)}`);
 }
 
+/** --dir, else the plugin's data folder, else keepup's own home, which KEEPUP_HOME moves, as it moves the key and the packs. */
 export function dataDir(given         , env                    = process.env)         {
-  return ownFolder(given ?? env.CLAUDE_PLUGIN_DATA ?? join(homedir(), '.keepup'), env);
+  return ownFolder(given ?? (env.CLAUDE_PLUGIN_DATA || keepupHome(env)), env);
 }
 
 export function resetLog(dir        )       {
